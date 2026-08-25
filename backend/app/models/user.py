@@ -1,29 +1,51 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from datetime import datetime
 
-from app.config.settings import settings
+from sqlalchemy import Boolean, DateTime, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-
-engine = create_engine(
-    settings.DATABASE_URL,
-    echo=False
-)
+from app.config.database import Base
 
 
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
-)
+class User(Base):
+    __tablename__ = "users"
 
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
 
-Base = declarative_base()
+    username: Mapped[str] = mapped_column(
+        String(100),
+        unique=True,
+        nullable=False,
+        index=True
+    )
 
+    email: Mapped[str] = mapped_column(
+        String(255),
+        unique=True,
+        nullable=False,
+        index=True
+    )
 
-def get_db():
-    db = SessionLocal()
+    password_hash: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False
+    )
 
-    try:
-        yield db
-    finally:
-        db.close()
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow
+    )
+
+    scans = relationship(
+        "Scan",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )

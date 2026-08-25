@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app.config.database import get_db
 from app.models.user import User
-from app.schemas.user import UserCreate, UserLogin, UserResponse, Token
+from app.schemas.user import UserCreate, UserResponse, Token
 from app.utils.security import (
     hash_password,
     verify_password,
@@ -32,7 +33,7 @@ def register(
 
     if existing_username:
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already exists"
         )
 
@@ -42,7 +43,7 @@ def register(
 
     if existing_email:
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already exists"
         )
 
@@ -59,33 +60,38 @@ def register(
     return user
 
 
-@router.post("/login", response_model=Token)
+@router.post(
+    "/login",
+    response_model=Token
+)
 def login(
-    user_data: UserLogin,
+    form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
     user = db.query(User).filter(
-        User.username == user_data.username
+        User.username == form_data.username
     ).first()
 
     if not user:
         raise HTTPException(
-            status_code=401,
-            detail="Invalid username or password"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password",
+            headers={"WWW-Authenticate": "Bearer"}
         )
 
     if not verify_password(
-        user_data.password,
+        form_data.password,
         user.password_hash
     ):
         raise HTTPException(
-            status_code=401,
-            detail="Invalid username or password"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password",
+            headers={"WWW-Authenticate": "Bearer"}
         )
 
     if not user.is_active:
         raise HTTPException(
-            status_code=403,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive"
         )
 

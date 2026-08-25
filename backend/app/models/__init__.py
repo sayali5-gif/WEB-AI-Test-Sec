@@ -5,3 +5,4 @@ from app.models.traffic import TrafficLog
 from app.models.ai_prediction import AIPrediction
 from app.models.risk_score import RiskScore
 from app.models.report import Report
+from app.models.scan_result import ScanResult
