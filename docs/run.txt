@@ -1,4 +1,33 @@
+# Frontend:
+
+cd frontend
+npm run dev
 
 
 
+# Backend
+
+cd backend
+venv\Scripts\activate
 uvicorn app.main:app --reload
+
+
+# Github
+1. push your changes to Github
+
+git status
+git add .
+git commit -m "new Changes"
+git push
+
+
+2. Pull entire repo (updating repo but Lost your changes)
+
+git pull origin main
+
+
+3. Pull repo (updating repo without losting your changes)
+
+git add .
+git commit -m "new changes"
+git pull --rebase origin main
