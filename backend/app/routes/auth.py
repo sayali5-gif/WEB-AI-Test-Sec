@@ -1,105 +1,20 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
+from datetime import datetime, timezone
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
-
-from app.config.database import get_db
+from app.dependencies import get_current_user, get_db
 from app.models.user import User
-from app.schemas.user import UserCreate, UserResponse, Token
-from app.utils.security import (
-    hash_password,
-    verify_password,
-    create_access_token
-)
-
-
-router = APIRouter(
-    prefix="/api/auth",
-    tags=["Authentication"]
-)
-
-
-@router.post(
-    "/register",
-    response_model=UserResponse,
-    status_code=status.HTTP_201_CREATED
-)
-def register(
-    user_data: UserCreate,
-    db: Session = Depends(get_db)
-):
-    existing_username = db.query(User).filter(
-        User.username == user_data.username
-    ).first()
-
-    if existing_username:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already exists"
-        )
-
-    existing_email = db.query(User).filter(
-        User.email == user_data.email
-    ).first()
-
-    if existing_email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already exists"
-        )
-
-    user = User(
-        username=user_data.username,
-        email=user_data.email,
-        password_hash=hash_password(user_data.password)
-    )
-
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-
-    return user
-
-
-@router.post(
-    "/login",
-    response_model=Token
-)
-def login(
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db)
-):
-    user = db.query(User).filter(
-        User.username == form_data.username
-    ).first()
-
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password",
-            headers={"WWW-Authenticate": "Bearer"}
-        )
-
-    if not verify_password(
-        form_data.password,
-        user.password_hash
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password",
-            headers={"WWW-Authenticate": "Bearer"}
-        )
-
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is inactive"
-        )
-
-    token = create_access_token(
-        {"sub": str(user.id)}
-    )
-
-    return {
-        "access_token": token,
-        "token_type": "bearer"
-    }
+from app.schemas.auth import LoginRequest, TokenResponse
+from app.schemas.user import UserCreate, UserResponse
+from app.services.auth_service import create_access_token, register_user, verify_password
+router = APIRouter(prefix="/auth", tags=["Authentication"])
+@router.post("/register", response_model=UserResponse, status_code=201)
+def register(payload: UserCreate, db: Session = Depends(get_db)): return register_user(db, payload)
+@router.post("/login", response_model=TokenResponse)
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = db.scalar(select(User).where(func.lower(User.email) == payload.email.strip().lower()))
+    if not user or not user.is_active or not verify_password(payload.password, user.password_hash): raise HTTPException(status_code=401, detail="Incorrect email or password")
+    user.last_login_at = datetime.now(timezone.utc); db.commit(); db.refresh(user)
+    return TokenResponse(access_token=create_access_token(user), user=user)
+@router.get("/me", response_model=UserResponse)
+def me(current_user: User = Depends(get_current_user)): return current_user

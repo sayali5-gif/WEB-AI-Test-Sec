@@ -1,8 +1,6 @@
 from app.models.user import User
 from app.models.scan import Scan
-from app.models.vulnerability import Vulnerability
-from app.models.traffic import TrafficLog
-from app.models.ai_prediction import AIPrediction
-from app.models.risk_score import RiskScore
-from app.models.report import Report
-from app.models.scan_result import ScanResult
+from app.models.finding import Finding
+from app.models.log import ActivityLog
+
+__all__ = ["User", "Scan", "Finding", "ActivityLog"]

@@ -1,29 +1,26 @@
 from datetime import datetime
-
-from pydantic import BaseModel, ConfigDict, EmailStr
-
+from uuid import UUID
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from app.models.user import UserRole
 
 class UserCreate(BaseModel):
-    username: str
-    email: EmailStr
-    password: str
+    email: str = Field(max_length=320)
+    password: str = Field(min_length=12, max_length=128)
+    full_name: str | None = Field(default=None, max_length=200)
+    @field_validator("email")
+    @classmethod
+    def valid_email(cls, value: str) -> str:
+        value = value.strip().lower()
+        if value.count("@") != 1 or value.startswith("@") or value.endswith("@"):
+            raise ValueError("A valid email address is required")
+        return value
 
-
-class UserLogin(BaseModel):
-    username: str
-    password: str
-
+class UserUpdate(BaseModel):
+    full_name: str | None = Field(default=None, max_length=200)
+    password: str | None = Field(default=None, min_length=12, max_length=128)
+    is_active: bool | None = None
 
 class UserResponse(BaseModel):
-    id: int
-    username: str
-    email: EmailStr
-    is_active: bool
-    created_at: datetime
-
     model_config = ConfigDict(from_attributes=True)
-
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
+    id: UUID; email: str; full_name: str | None; role: UserRole; is_active: bool
+    created_at: datetime; last_login_at: datetime | None

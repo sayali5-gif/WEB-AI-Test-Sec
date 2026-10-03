@@ -1,0 +1,15 @@
+frontend:
+cd frontend
+npm  run dev
+
+backend
+cd backend
+venv\Scripts\activate
+python app/main.py
+
+uvicorn app.main:app --reload
+
+
+
+Email: analyst@example.test
+Password: DemoPassword123!

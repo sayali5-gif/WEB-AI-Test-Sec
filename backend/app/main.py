@@ -1,82 +1,116 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
-from app.config.database import Base, engine
-from app.models import (
-    User,
-    Scan,
-    Vulnerability,
-    TrafficLog,
-    AIPrediction,
-    RiskScore,
-    Report
-)
-
-from app.routes import (
-    auth,
-    scans,
-    vulnerabilities,
-    traffic,
-    reports
-)
-from app.routes import (
-    auth,
-    scans,
-    vulnerabilities,
-    traffic,
-    reports,
-    scan_results
-)
-
-
-# Create database tables
-Base.metadata.create_all(bind=engine)
+from app.config.database import SessionLocal
+from app.config.settings import settings
+from app.routes import auth, findings, logs, scans, users
 
 
 app = FastAPI(
-    title="AI-WebSecTest API",
-    description=(
-        "AI-Assisted Automated Security Testing and "
-        "Intrusion Detection for Web Applications"
-    ),
-    version="1.0.0"
+    title=settings.app_name,
+    version="0.1.0",
+    description="Phase 3 REST API for AI-WebSecTest"
 )
 
 
-# React frontend connection
+# ============================================================
+# CORS MIDDLEWARE
+# ============================================================
+
+origins = [
+    "http://localhost:5173",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173"
-    ],
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"]
+    allow_methods=[
+        "GET",
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE",
+        "OPTIONS",
+    ],
+    allow_headers=[
+        "Content-Type",
+        "Authorization",
+    ],
 )
 
 
-@app.get("/")
-def root():
+# ============================================================
+# API ROUTES
+# ============================================================
+
+app.include_router(
+    auth.router,
+    prefix=settings.api_prefix,
+)
+
+app.include_router(
+    users.router,
+    prefix=settings.api_prefix,
+)
+
+app.include_router(
+    scans.router,
+    prefix=settings.api_prefix,
+)
+
+app.include_router(
+    findings.router,
+    prefix=settings.api_prefix,
+)
+
+app.include_router(
+    logs.router,
+    prefix=settings.api_prefix,
+)
+
+
+# ============================================================
+# HEALTH CHECK
+# ============================================================
+
+@app.get(
+    "/api/health",
+    tags=["System"],
+)
+def health():
     return {
-        "message": "AI-WebSecTest Backend is running",
-        "status": "success"
+        "status": "ok",
+        "service": "ai-websectest-api",
     }
 
 
-@app.get("/api/health")
-def health_check():
+# ============================================================
+# DATABASE CONNECTION TEST
+# ============================================================
+
+@app.get(
+    "/api/database-test",
+    tags=["System"],
+)
+def database_test():
+    try:
+        with SessionLocal() as db:
+            db.execute(text("SELECT 1"))
+
+    except SQLAlchemyError:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unavailable",
+                "detail": "Database connection failed",
+            },
+        )
+
     return {
-        "status": "healthy",
-        "service": "AI-WebSecTest Backend",
-        "database": "connected"
+        "status": "ok",
+        "detail": "Database connection successful",
     }
-
-
-# Register API routers
-
-app.include_router(auth.router)
-app.include_router(scans.router)
-app.include_router(vulnerabilities.router)
-app.include_router(traffic.router)
-app.include_router(reports.router)
-app.include_router(scan_results.router)
