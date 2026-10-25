@@ -7,6 +7,9 @@ cd backend
 venv\Scripts\activate
 python app/main.py
 
+
+npm install bcrypt cors dotenv express express-rate-limit helmet ipaddr.js jsonwebtoken pg
+
 uvicorn app.main:app --reload
 
 
